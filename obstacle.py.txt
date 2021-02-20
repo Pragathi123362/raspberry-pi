@@ -1,0 +1,58 @@
+import RPi.GPIO as IO
+import serial
+import time
+m1=20
+m2=21
+m3=19
+m4=26
+state=0
+c=0
+ser=serial.Serial('/dev/ttyAMA0',9600,timeout=0.002)
+IO.setmode(IO.BCM)
+IO.setwarnings(False)
+IO.setup(5,IO.IN,pull_up_down=IO.PUD_UP)
+IO.setup(6,IO.IN,pull_up_down=IO.PUD_UP)
+IO.setup(m1,IO.OUT)
+IO.setup(m2,IO.OUT)
+IO.setup(m3,IO.OUT)
+IO.setup(m4,IO.OUT)
+def interrupt_handler(channel):
+    global state
+    global c
+    print("interrupt handler")
+    if channel==5:
+      if c==1:
+        IO.output(m1,IO.LOW)
+        IO.output(m2,IO.LOW)
+        IO.output(m3,IO.LOW)
+        IO.output(m4,IO.LOW)
+        print("Front obstacle")
+    elif channel==6:
+      if c==2:
+        IO.output(m1,IO.LOW)
+        IO.output(m2,IO.LOW)
+        IO.output(m3,IO.LOW)
+        IO.output(m4,IO.LOW)
+        print("Right obstacle")
+IO.add_event_detect(5,IO.RISING,callback=interrupt_handler,bouncetime=200)
+IO.add_event_detect(6,IO.RISING,callback=interrupt_handler,bouncetime=200)
+while True:
+    incoming=ser.readline().strip()
+    if incoming==b'f':
+        IO.output(m1,IO.HIGH)
+        IO.output(m2,IO.LOW)
+        IO.output(m3,IO.HIGH)
+        IO.output(m4,IO.LOW)
+        c=1
+    if incoming==b'l':
+        IO.output(m1,IO.LOW)
+        IO.output(m2,IO.LOW)
+        IO.output(m3,IO.HIGH)
+        IO.output(m4,IO.LOW)
+        c=2
+    if incoming==b'n':
+        IO.output(m1,IO.LOW)
+        IO.output(m2,IO.LOW)
+        IO.output(m3,IO.LOW)
+        IO.output(m4,IO.LOW)
+        c=0
