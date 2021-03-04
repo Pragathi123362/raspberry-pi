@@ -91,7 +91,6 @@ def TakeImages():
 			# Converting the image into grayscale as most of 
 			# the the processing is done in gray scale format 
 			gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
-			
 			# It converts the images in different sizes 
 			# (decreases by 1.3 times) and 5 specifies the 
 			# number of times scaling happens 
