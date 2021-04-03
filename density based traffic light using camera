@@ -1,0 +1,234 @@
+import cv2
+from time import sleep
+import RPi.GPIO as GPIO
+
+GPIO.setwarnings(False) # Ignore warning for now
+GPIO.setmode(GPIO.BOARD) # Use physical pin numbering
+#0 degree first side
+GPIO.setup(8, GPIO.OUT, initial=GPIO.HIGH) # Set pin 8 to be an output pin and set initial value to low (off)
+GPIO.setup(10, GPIO.OUT, initial=GPIO.HIGH)
+GPIO.setup(12, GPIO.OUT, initial=GPIO.HIGH)
+#90 degree secon side
+GPIO.setup(36, GPIO.OUT, initial=GPIO.HIGH) # Set pin 8 to be an output pin and set initial value to low (off)
+GPIO.setup(38, GPIO.OUT, initial=GPIO.HIGH)
+GPIO.setup(40, GPIO.OUT, initial=GPIO.HIGH)
+#180 degree fourth side
+GPIO.setup(11, GPIO.OUT, initial=GPIO.HIGH) # Set pin 8 to be an output pin and set initial value to low (off)
+GPIO.setup(13, GPIO.OUT, initial=GPIO.HIGH)
+GPIO.setup(15, GPIO.OUT, initial=GPIO.HIGH)
+#360 degree third side
+GPIO.setup(37, GPIO.OUT, initial=GPIO.HIGH) # Set pin 8 to be an output pin and set initial value to low (off)
+GPIO.setup(35, GPIO.OUT, initial=GPIO.HIGH)
+GPIO.setup(33, GPIO.OUT, initial=GPIO.HIGH)
+GPIO.setup(32,GPIO.OUT)
+servo1 = GPIO.PWM(32,50)
+
+
+
+while True:
+    camera = cv2.VideoCapture(0)
+    servo1.start(0)
+    print ("Waiting for 2 seconds")
+    sleep(2)
+    duty = 0
+
+    servo1.ChangeDutyCycle(0)
+    print ("1")
+    sleep(2)
+    for i in range(10):
+        return_value, image = camera.read()
+        cv2.imwrite('firstside'+str(i)+'.jpg', image)
+        print('firstside captured')
+        sleep(2)
+        break
+    del(camera)
+    servo1.ChangeDutyCycle(5)
+    print ("2")
+    sleep(2)
+    camera = cv2.VideoCapture(0)
+    for i in range(10):
+        return_value, image = camera.read()
+        cv2.imwrite('secondside'+str(i)+'.jpg', image)
+        print('secondside captured')
+        sleep(2)
+        break
+    del(camera)
+    servo1.ChangeDutyCycle(7.5)
+    print ("3")
+    sleep(2)
+    camera = cv2.VideoCapture(0)
+    for i in range(10):
+        return_value, image = camera.read()
+        cv2.imwrite('thirdside'+str(i)+'.jpg', image)
+        print('thirdside captured')
+        sleep(2)
+        break
+    del(camera)
+    servo1.ChangeDutyCycle(13.5)
+    print ("4")
+    sleep(2)
+    camera = cv2.VideoCapture(0)
+    for i in range(10):
+        return_value, image = camera.read()
+        cv2.imwrite('fourthside'+str(i)+'.jpg', image)
+        print('fourthside captured')
+        sleep(2)
+        break
+    del(camera)
+    print ("Turning back to 90 degrees for 2 seconds")
+    #servo1.ChangeDutyCycle(7)
+    sleep(2)
+
+    #turn back to 0 degrees
+    print ("Turning back to 0 degrees")
+    servo1.ChangeDutyCycle(2)
+   
+    #image1= cv2.imread('opencv0.jpg')
+
+    #image3= cv2.imread('maopencv0.jpg')
+    image1= cv2.imread('firstside0.jpg')
+
+    image2= cv2.imread('secondside0.jpg')
+    image3= cv2.imread('thirdside0.jpg')
+    image4= cv2.imread('fourthside0.jpg')
+
+    car_cascade = cv2.CascadeClassifier('cars.')
+
+    gray1= cv2.cvtColor(image1,cv2.COLOR_BGR2GRAY)
+    gray2= cv2.cvtColor(image2,cv2.COLOR_BGR2GRAY)
+    gray3= cv2.cvtColor(image3,cv2.COLOR_BGR2GRAY)
+    gray4= cv2.cvtColor(image4,cv2.COLOR_BGR2GRAY)
+
+
+
+    edges1= cv2.Canny(gray1, 50,200)
+    edges2= cv2.Canny(gray2, 50,200)
+    edges3= cv2.Canny(gray3, 50,200)
+    edges4= cv2.Canny(gray4, 50,200)
+
+    contours1, hierarchy1= cv2.findContours(edges1.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contours2, hierarchy2= cv2.findContours(edges2.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contours3, hierarchy3= cv2.findContours(edges3.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contours4, hierarchy4= cv2.findContours(edges4.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+    number_of_objects_in_image1= len(contours1)
+
+    number_of_objects_in_image2= len(contours2)
+    number_of_objects_in_image3= len(contours3)
+    number_of_objects_in_image4= len(contours4)
+    sleep(1)
+
+
+
+    print ("The number of objects in this image1: ", str(number_of_objects_in_image1))
+    print ("The number of objects in this image2: ", str(number_of_objects_in_image2))
+    print ("The number of objects in this image3: ", str(number_of_objects_in_image3))
+
+    print ("The number of objects in this image4: ", str(number_of_objects_in_image4))
+
+    
+    if ((number_of_objects_in_image1)> (number_of_objects_in_image2) and (number_of_objects_in_image1) > (number_of_objects_in_image3) and (number_of_objects_in_image1)>(number_of_objects_in_image4)):
+        print("side one is allowed")
+        GPIO.output(8, GPIO.LOW) # Turn on
+        print("side one red on")
+        GPIO.output(36, GPIO.LOW) # Turn on
+        GPIO.output(11, GPIO.LOW) # Turn on
+        GPIO.output(37, GPIO.LOW) # Turn on
+        sleep(1) # Sleep for 1 second
+        GPIO.output(8, GPIO.HIGH) # Turn off
+        sleep(1) # Sleep for 1 second
+        print("side one red off")
+        GPIO.output(10, GPIO.LOW) # Turn on
+        print("side one yellow on")
+        sleep(5) # Sleep for 1 second
+        GPIO.output(10, GPIO.HIGH) # Turn off
+        sleep(1) # Sleep for 1 second
+        print("side one yellow off")
+        GPIO.output(12, GPIO.LOW) # Turn on
+        print("side one green on")
+        sleep(3) # Sleep for 1 second
+        GPIO.output(12, GPIO.HIGH) # Turn off
+        sleep(1) # Sleep for 1 second
+        print("side one green off")
+        
+    elif ((number_of_objects_in_image2)> (number_of_objects_in_image1) and (number_of_objects_in_image2) > (number_of_objects_in_image3) and (number_of_objects_in_image2)>(number_of_objects_in_image4)):
+        print("side two is allowed")
+        GPIO.output(36, GPIO.LOW) # Turn on
+        GPIO.output(8, GPIO.LOW) # Turn on
+        GPIO.output(11, GPIO.LOW) # Turn on
+        GPIO.output(37, GPIO.LOW)               # Turn on
+        print("side two red")
+        sleep(1) # Sleep for 1 second
+        GPIO.output(36, GPIO.HIGH) # Turn off
+        sleep(1) # Sleep for 1 second
+        print("side two red off")
+        GPIO.output(38, GPIO.LOW) # Turn on
+        print("side two yellow on")
+        sleep(5) # Sleep for 1 second
+        GPIO.output(38, GPIO.HIGH) # Turn off
+        sleep(1) # Sleep for 1 second
+        print("side two yellow off")
+        GPIO.output(40, GPIO.LOW) # Turn on
+        print("side two green on")
+        sleep(3) # Sleep for 1 second
+        GPIO.output(40, GPIO.HIGH) # Turn off
+        sleep(1) # Sleep for 1 second
+        print("side two green off")
+        
+    elif ((number_of_objects_in_image3) > (number_of_objects_in_image1) and (number_of_objects_in_image3) > (number_of_objects_in_image2) and (number_of_objects_in_image3)>(number_of_objects_in_image4)):
+        print("side three is allowed")
+        GPIO.output(37, GPIO.LOW) # Turn on
+        GPIO.output(36, GPIO.LOW) # Turn on
+        GPIO.output(8, GPIO.LOW) # Turn on
+        GPIO.output(11, GPIO.LOW) # Turn on
+        print("side three red")
+        sleep(1) # Sleep for 1 second
+        GPIO.output(37, GPIO.HIGH) # Turn off
+        sleep(1) # Sleep for 1 second
+        print("side three red off")
+        GPIO.output(35, GPIO.LOW) # Turn on
+        print("side three yellow on")
+        sleep(5) # Sleep for 1 second
+        GPIO.output(35, GPIO.HIGH) # Turn off
+        sleep(1) # Sleep for 1 second
+        print("side three yellow off")
+        GPIO.output(33, GPIO.LOW) # Turn on
+        print("side three green on")
+        sleep(3) # Sleep for 1 second
+        GPIO.output(33, GPIO.HIGH) # Turn off
+        sleep(1) # Sleep for 1 second
+        print("side three green off")
+        
+    else:
+        print("side four is allowed")
+        GPIO.output(11, GPIO.LOW) # Turn on
+        GPIO.output(8, GPIO.LOW) # Turn on
+        GPIO.output(37, GPIO.LOW) # Turn on
+        GPIO.output(36, GPIO.LOW) # Turn on
+        print("side four red on")
+        sleep(1) # Sleep for 1 second
+        GPIO.output(11, GPIO.HIGH) # Turn off
+        sleep(1) # Sleep for 1 second
+        print("side four red off")
+        GPIO.output(13, GPIO.LOW) # Turn on
+        print("side four yellow on")
+        sleep(5) # Sleep for 1 second
+        GPIO.output(13, GPIO.HIGH) # Turn off
+        sleep(1) # Sleep for 1 second
+        print("side four yellow off")
+        GPIO.output(15, GPIO.LOW) # Turn on
+        print("side four green on")
+        sleep(3) # Sleep for 1 second
+        GPIO.output(15, GPIO.HIGH) # Turn off
+        sleep(1) # Sleep for 1 second
+        print("side four green off")
+       
+        
+
+    
+        
+
+
+# cleanup the camera and close any open windows
+camera.release()
+cv2.destroyAllWindows()
