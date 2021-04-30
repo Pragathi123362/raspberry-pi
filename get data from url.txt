@@ -1,0 +1,12 @@
+import time
+import requests
+
+
+
+
+
+
+while(1):
+    r =requests.get('http://buspass.wizzie.online/check_status.php?user_id=4')
+    print (str(r.text))
+   
