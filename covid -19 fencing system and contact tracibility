@@ -1,0 +1,215 @@
+#Libraries
+import RPi.GPIO as IO
+import time
+from time import sleep
+import cv2
+import smtplib
+import os
+import os.path
+from email.mime.text import MIMEText#email.mime.text.MIMEText(_text[, _subtype[, _charset]])
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase#email.mime.base.MIMEBase(_maintype(e.g. text or image), _subtype(e.g. plain or gif), **_params(e.g.key/value dictionary))
+from email import encoders
+import serial
+import string
+import pynmea2
+
+
+#pin selection
+ir1= 23
+relay=16
+ir2=20                 
+LCD_RS = 11
+LCD_E  = 5
+LCD_D4 = 6
+LCD_D5 = 13
+LCD_D6 = 19
+LCD_D7 = 26
+
+
+#pinmode
+IO.setwarnings(False)
+IO.setmode(IO.BCM)
+IO.setup(ir1,IO.IN)
+IO.setup(relay,IO.OUT)
+IO.setup(ir2,IO.IN)
+IO.setup(LCD_E, IO.OUT)  
+IO.setup(LCD_RS, IO.OUT) 
+IO.setup(LCD_D4, IO.OUT) 
+IO.setup(LCD_D5, IO.OUT) 
+IO.setup(LCD_D6, IO.OUT) 
+IO.setup(LCD_D7, IO.OUT) 
+
+#Output set to zero
+IO.output(relay,IO.LOW)
+
+
+
+
+
+#Serial port enable
+port="/dev/ttyS0"
+ser=serial.Serial(port,baudrate=9600,timeout=1)
+
+#getting gps location
+def gps():
+    
+        return gps
+
+# Define some device constants
+LCD_WIDTH = 16    # Maximum characters per line
+LCD_CHR = True
+LCD_CMD = False
+ 
+LCD_LINE_1 = 0x80 # LCD RAM address for the 1st line
+LCD_LINE_2 = 0xC0 # LCD RAM address for the 2nd line
+ 
+# Timing constants
+E_PULSE = 0.0005
+E_DELAY = 0.0005
+
+def lcd_init():
+  lcd_display(0x28,LCD_CMD) # Selecting 4 - bit mode with two rows
+  lcd_display(0x0C,LCD_CMD) # Display On,Cursor Off, Blink Off
+  lcd_display(0x01,LCD_CMD) # Clear display
+
+  sleep(E_DELAY)
+ 
+def lcd_display(bits, mode):
+  # Send byte to data pins
+  # bits = data
+  # mode = True  for character
+  #        False for command
+ 
+  IO.output(LCD_RS, mode) # RS
+ 
+  # High bits
+  IO.output(LCD_D4, False)
+  IO.output(LCD_D5, False)
+  IO.output(LCD_D6, False)
+  IO.output(LCD_D7, False)
+  if bits&0x10==0x10:
+    IO.output(LCD_D4, True)
+  if bits&0x20==0x20:
+    IO.output(LCD_D5, True)
+  if bits&0x40==0x40:
+    IO.output(LCD_D6, True)
+  if bits&0x80==0x80:
+    IO.output(LCD_D7, True)
+ 
+  # Toggle 'Enable' pin
+  lcd_toggle_enable()
+ 
+  # Low bits
+  IO.output(LCD_D4, False)
+  IO.output(LCD_D5, False)
+  IO.output(LCD_D6, False)
+  IO.output(LCD_D7, False)
+  if bits&0x01==0x01:
+    IO.output(LCD_D4, True)
+  if bits&0x02==0x02:
+    IO.output(LCD_D5, True)
+  if bits&0x04==0x04:
+    IO.output(LCD_D6, True)
+  if bits&0x08==0x08:
+    IO.output(LCD_D7, True)
+ 
+  # Toggle 'Enable' pin
+  lcd_toggle_enable()
+ 
+# Toggle enable
+def lcd_toggle_enable():
+  time.sleep(E_DELAY)
+  IO.output(LCD_E, True)
+  time.sleep(E_PULSE)
+  IO.output(LCD_E, False)
+  time.sleep(E_DELAY)
+ 
+# Send string to display
+def lcd_string(message,line):
+
+ 
+  message = message.ljust(LCD_WIDTH," ")
+ 
+  lcd_display(line, LCD_CMD)
+ 
+  for i in range(LCD_WIDTH):
+    lcd_display(ord(message[i]),LCD_CHR)
+
+ 
+lcd_init()
+
+
+#Main loop
+while True:
+    if IO.input(ir1)==0:
+        IO.output(relay,IO.HIGH)
+        print("Intruder- entrance")
+        lcd_string("RED ZONE ALERT",LCD_LINE_1)
+        #lcd_string("At entrance",LCD_LINE_2)
+    elif IO.input(ir1)==1:
+        IO.output(relay,IO.LOW)
+        print("No Intruder-entrance")
+        lcd_string("No Intruder",LCD_LINE_1)
+        #lcd_string("At entrance",LCD_LINE_2)
+    if IO.input(ir2)==0:
+        cam=cv2.VideoCapture(0)
+        print("Intruder alert")
+        lcd_string("RED ZONE ALERT",LCD_LINE_1)
+        #lcd_string("entered",LCD_LINE_2)
+        ret,img=cam.read()
+        cv2.imwrite("image/Intruder.png",img)
+        print("Image captured")
+        del(cam)
+        dataout=pynmea2.NMEAStreamReader()
+        newdata=ser.readline()
+        print("Not yet tracked")
+        if newdata[0:6]==b'$GPRMC':
+            print("Location Tracked")
+            newmsg=pynmea2.parse(newdata.decode('ASCII'))
+            latitude=round(newmsg.latitude,6)
+            longitude=round(newmsg.longitude,6)
+            gps="Latitude="+str(latitude)+"Longitude="+str(longitude)
+            print(gps)
+            map_link = 'http://maps.google.com/?q=' + str(latitude) + ',' + str(longitude)    #create link to plot location on Google map
+            print(map_link)
+            lcd_string("Latitude:",LCD_LINE_1)
+            lcd_string(str(latitude),LCD_LINE_2)
+            time.sleep(2)
+            lcd_string("Longitude:",LCD_LINE_1)
+            lcd_string(str(longitude),LCD_LINE_2)
+        #gps()
+        #Mail credentials
+            email = 'xxxxxxx@gmail.com'
+            password = 'xxxxxxx'
+            send_to_email = 'xxxxxxx@gmail.com'
+            subject = 'Intruder in Red Zone alert'
+            message = map_link
+            file_location = '/home/pi/Desktop/test_codes/image/Intruder.png'
+            msg = MIMEMultipart()#Create the container (outer) email message.
+            msg['From'] = email
+            msg['To'] = send_to_email
+            msg['Subject'] = subject
+            msg.attach(MIMEText(message, 'plain'))#attach new  message by using the Message.attach
+            filename = os.path.basename(file_location)#function returns the tail of the path
+            attachment = open(file_location, "rb") #“rb” (read binary)
+            part = MIMEBase('application', 'octet-stream')#Content-Type: application/octet-stream , image/png, application/pdf
+            part.set_payload((attachment).read())
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', "attachment; filename= %s" % filename)#Content-Disposition: attachment; filename="takeoff.png"
+            msg.attach(part)
+            server = smtplib.SMTP('smtp.gmail.com', 587)# Send the message via local SMTP server.
+            print("SENDING MAIL")
+            server.starttls()# sendmail function takes 3 arguments: sender's address, recipient's address and message to send
+            server.login(email, password)
+            text = msg.as_string()
+            server.sendmail(email, send_to_email, text)
+            print("mail sent")
+            server.quit()
+            lcd_string("Mail sent",LCD_LINE_1)
+            time.sleep(3)
+            lcd_display(0x01,LCD_CMD)
+    elif IO.input(ir2)==1:
+        print("No Intruder-inside")
+       # lcd_string("No Intruder",LCD_LINE_1)
+        #lcd_string("entered",LCD_LINE_2)
