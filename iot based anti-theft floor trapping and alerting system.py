@@ -20,10 +20,11 @@ ir=2
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(21, GPIO.OUT)
-
+GPIO.setup(26, GPIO.OUT)
 p = GPIO.PWM(21, 50)
-
+s = GPIO.PWM(26, 50)
 p.start(7)
+s.start(7)
 GPIO.setup(ir, GPIO.IN)
 GPIO.setup(switch, GPIO.IN,GPIO.PUD_UP)
 email = 'pragathivijay8@gmail.com'
@@ -31,7 +32,7 @@ password = 'Brother@4108'
 send_to_email =  'pragathivijay8@gmail.com'
 subject = 'msg from camera'
 message = 'location image received'
-file_location = '/home/pi/Desktop/image0.png'
+file_location = '/home/pi/Desktop/image00.png'
 msg = MIMEMultipart()#Create the container (outer) email message.
 msg['From'] = email
 msg['To'] = send_to_email
@@ -52,11 +53,13 @@ ser = serial.Serial("/dev/ttyAMA0",baudrate = 9600,timeout=1)
 
 while(1):
     p.ChangeDutyCycle(0)
+    s.ChangeDutyCycle(0)
+    s.ChangeDutyCycle(2) 
     data=ser.readline()
     print(data)
     if data==b'1':
         print("finger matched")
-       
+        print("door open")
         p.ChangeDutyCycle(7) # turn towards 90 degree
         time.sleep(2) # sleep 1 second
         
@@ -71,9 +74,9 @@ while(1):
        
         if GPIO.input(switch)==0:
             print("trap detected")
+            s.ChangeDutyCycle(7) # turn towards 90 degree
+            time.sleep(2)
             
-            p.ChangeDutyCycle(12) # turn towards 180 degree
-            time.sleep(1)  
             ser.write(b'AT\r\n')
             rcv = ser.read(10)
             print(rcv)
@@ -99,6 +102,8 @@ while(1):
             #time.sleep(30)
             ser.write(b'ATH\r')
             print ("IMAGE UPLOADING")
+            
+            
             print("with in cemara")
             camera = cv2.VideoCapture(0)
             for i in range(10):
@@ -125,5 +130,6 @@ while(1):
             server.sendmail(email, send_to_email, text)
             print("mail sent")
             server.quit()
-            
+            s.ChangeDutyCycle(2) # turn towards 180 degree
+            time.sleep(1) 
             
