@@ -1,0 +1,264 @@
+import Adafruit_DHT
+import RPi.GPIO as GPIO
+import time
+import serial
+import string
+import cv2
+import numpy as np
+import time
+import sys
+import os
+import smtplib
+import os.path
+from email.mime.text import MIMEText#email.mime.text.MIMEText(_text[, _subtype[, _charset]])
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase#email.mime.base.MIMEBase(_maintype(e.g. text or image), _subtype(e.g. plain or gif), **_params(e.g.key/value dictionary))
+from email import encoders
+
+
+
+
+cam=cv2.VideoCapture(0)
+
+frame_width=int(cam.get(3))
+frame_height=int(cam.get(4))
+out=cv2.VideoWriter('outpy.avi',cv2.VideoWriter_fourcc('M','J','P','G'),10,(frame_width,frame_height))
+
+
+
+ser=serial.Serial(port='/dev/ttyAMA0',baudrate=9600,timeout=1)
+
+
+dht=Adafruit_DHT.DHT11
+
+pin=17
+
+
+soil=24
+sound=25
+mota=8
+#motb=7
+fan=1
+LCD_RS=27
+LCD_E=22
+LCD_D4=6
+LCD_D5=13
+LCD_D6=19
+LCD_D7=26
+
+LCD_WIDTH=16
+LCD_CHR=True
+LCD_CMD=False
+
+LCD_LINE_1=0x80
+LCD_LINE_2=0xc0
+
+E_PULSE=0.001
+E_DELAY=0.001
+
+GPIO.setwarnings(False)
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(soil,GPIO.IN)
+GPIO.setup(sound,GPIO.IN)
+GPIO.setup(mota,GPIO.OUT)
+#GPIO.setup(motb,GPIO.OUT)
+GPIO.setup(fan,GPIO.OUT)
+GPIO.setup(LCD_RS,GPIO.OUT)
+GPIO.setup(LCD_E,GPIO.OUT)
+GPIO.setup(LCD_D4,GPIO.OUT)
+GPIO.setup(LCD_D5,GPIO.OUT)
+GPIO.setup(LCD_D6,GPIO.OUT)
+GPIO.setup(LCD_D7,GPIO.OUT)
+
+def lcd_init():
+    lcd_byte(0x33,LCD_CMD)
+    lcd_byte(0x32,LCD_CMD)
+    lcd_byte(0x06,LCD_CMD)
+    lcd_byte(0x0c,LCD_CMD)
+    lcd_byte(0x28,LCD_CMD)
+    lcd_byte(0x01,LCD_CMD)
+    time.sleep(E_DELAY)
+
+def lcd_toggle_enable():
+    time.sleep(E_DELAY)
+    GPIO.output(LCD_E,True)
+    time.sleep(E_PULSE)
+    GPIO.output(LCD_E,False)
+    time.sleep(E_DELAY)
+
+def lcd_byte(bits,mode):
+    GPIO.output(LCD_RS,mode)
+    GPIO.output(LCD_D4,False)
+    GPIO.output(LCD_D5,False)
+    GPIO.output(LCD_D6,False)
+    GPIO.output(LCD_D7,False)
+    if bits&0x10==0x10:
+        GPIO.output(LCD_D4,True)
+    if bits&0x20==0x20:
+        GPIO.output(LCD_D5,True)
+    if bits&0x40==0x40:
+        GPIO.output(LCD_D6,True)
+    if bits&0x80==0x80:
+        GPIO.output(LCD_D7,True)
+    lcd_toggle_enable()
+    GPIO.output(LCD_D4,False)
+    GPIO.output(LCD_D5,False)
+    GPIO.output(LCD_D6,False)
+    GPIO.output(LCD_D7,False)
+    if bits&0x01==0x01:
+        GPIO.output(LCD_D4,True)
+    if bits&0x02==0x02:
+        GPIO.output(LCD_D5,True)
+    if bits&0x04==0x04:
+        GPIO.output(LCD_D6,True)
+    if bits&0x08==0x08:
+        GPIO.output(LCD_D7,True)
+    lcd_toggle_enable()
+
+
+def lcd_string(message,line):
+    message=message.ljust(LCD_WIDTH," ")
+    lcd_byte(line,LCD_CMD)
+    for i in range(LCD_WIDTH):
+        lcd_byte(ord(message[i]),LCD_CHR)
+        
+lcd_init()
+def sendmessage(message):
+    lcd_byte(0x01,LCD_CMD)
+    lcd_string("sms sending..",LCD_LINE_1)
+    ser.write(b'AT\r')
+    time.sleep(2)
+    ser.write(b'AT+CMGF=1\r')
+    time.sleep(2)
+    ser.write(b'AT+CMGS=\'+919963417793\'\r')
+    time.sleep(2)
+##    ser.write(message)
+##    time.sleep(2)
+##    ser.write(char(26))
+    ser.write(str.encode(message+chr(26)))
+    lcd_byte(0x01,LCD_CMD)
+    lcd_string("sms sent",LCD_LINE_1)
+    time.sleep(3)
+    lcd_byte(0x01,LCD_CMD)
+    #time.sleep(10)
+k=0
+l=0
+
+while True:
+    humidity,temperature=Adafruit_DHT.read_retry(dht,pin)
+    print("Temperature={0:0.1f}*c and Humidity={1:0.1f}%".format(temperature,humidity))
+ #   time.sleep(3)
+    lcd_string("Temp:",LCD_LINE_1)
+    lcd_string(str(temperature),LCD_LINE_2)
+    time.sleep(3)
+    lcd_byte(0x01,LCD_CMD)
+    lcd_string("Humi:",LCD_LINE_1)
+    lcd_string(str(humidity),LCD_LINE_2)
+    time.sleep(3)
+    lcd_byte(0x01,LCD_CMD)
+    print(GPIO.input(soil))
+    print(GPIO.input(sound))
+    if GPIO.input(soil)==0:
+        msg="change the diaper"
+        lcd_string("change the",LCD_LINE_1)
+        lcd_string("diaper",LCD_LINE_2)
+        k=1
+        sendmessage(msg)
+        for c in range(300):
+            ret,frame=cam.read()
+            out.write(frame)
+        email = 'geetharani7793@gmail.com'
+        password = 'Geetha@lillyput14'
+        send_to_email = 'nettalamgeetha@gmail.com'
+        subject = 'baby caare'
+        message = 'change the diaper'
+        file_location = 'outpy.avi'
+        msg = MIMEMultipart()#Create the container (outer) email message.
+        msg['From'] = email
+        msg['To'] = send_to_email
+        msg['Subject'] = subject
+        '''as.string() 
+        |
+        +------------MIMEMultipart 
+                      |                                                |---content-type 
+                      |                                   +---header---+---content disposition 
+                      +----.attach()-----+----MIMEBase----| 
+                                         |                +---payload (to be encoded in Base64)
+                                         +----MIMEText'''
+        msg.attach(MIMEText(message, 'plain'))#attach new  message by using the Message.
+        filename = os.path.basename(file_location)#function returns the tail of the path
+        attachment = open(file_location, "rb") #“rb” (read binary)
+        part = MIMEBase('application', 'octet-stream')#Content-Type: application/octet-stream , image/png, application/pdf
+        part.set_payload((attachment).read())
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', "attachment; filename= %s" % filename)#Content-Disposition: attachment; filename="takeoff.png"
+        msg.attach(part)
+        server = smtplib.SMTP('smtp.gmail.com', 587)# Send the message via local SMTP server.
+        print("SENDING MAIL")
+        server.starttls()# sendmail function takes 3 arguments: sender's address, recipient's address and message to send
+        server.login(email, password)
+        text = msg.as_string()
+        server.sendmail(email, send_to_email, text)
+        print("mail sent")
+        server.quit()
+    if GPIO.input(sound)==0:
+        msg="Baby crying"
+        lcd_string("Baby",LCD_LINE_1)
+        lcd_string("crying",LCD_LINE_2)
+        l=1
+        sendmessage(msg)
+        for c in range(300):
+            ret,frame=cam.read()
+            out.write(frame)
+        email = 'geetharani7793@gmail.com'
+        password = 'Geetha@lillyput14'
+        send_to_email = 'nettalamgeetha@gmail.com'
+        subject = 'baby caare'
+        message = 'Baby crying'
+        file_location = 'outpy.avi'
+        msg = MIMEMultipart()#Create the container (outer) email message.
+        msg['From'] = email
+        msg['To'] = send_to_email
+        msg['Subject'] = subject
+        '''as.string() 
+        |
+        +------------MIMEMultipart 
+                      |                                                |---content-type 
+                      |                                   +---header---+---content disposition 
+                      +----.attach()-----+----MIMEBase----| 
+                                         |                +---payload (to be encoded in Base64)
+                                         +----MIMEText'''
+        msg.attach(MIMEText(message, 'plain'))#attach new  message by using the Message.
+        filename = os.path.basename(file_location)#function returns the tail of the path
+        attachment = open(file_location, "rb") #“rb” (read binary)
+        part = MIMEBase('application', 'octet-stream')#Content-Type: application/octet-stream , image/png, application/pdf
+        part.set_payload((attachment).read())
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', "attachment; filename= %s" % filename)#Content-Disposition: attachment; filename="takeoff.png"
+        msg.attach(part)
+        server = smtplib.SMTP('smtp.gmail.com', 587)# Send the message via local SMTP server.
+        print("SENDING MAIL")
+        server.starttls()# sendmail function takes 3 arguments: sender's address, recipient's address and message to send
+        server.login(email, password)
+        text = msg.as_string()
+        server.sendmail(email, send_to_email, text)
+        print("mail sent")
+        server.quit()
+
+    if k==1 or l==1 or temperature>=35:
+        GPIO.output(mota,1)
+        #GPIO.output(motb,0)
+        print("craddle")
+    elif l==0 and k==0 and temperature<35:
+        GPIO.output(mota,0)
+       # GPIO.input(motb,0)
+        print("stop")
+    if temperature>=35:
+        GPIO.output(fan,1)
+        print("fan on")
+    elif temperature<35:
+        GPIO.output(fan,0)
+        print("fan off")
+    k=0
+    l=0
+    #time.sleep(3)
